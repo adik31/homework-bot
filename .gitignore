@@ -150,3 +150,8 @@ static/
 posts/static/
 media/
 
+# Environment files
+*.env
+keys.env
+.env
+.env.*
