@@ -155,6 +155,73 @@ def parse_status(homework):
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
+def _setup_proxy():
+    """Настраивает прокси."""
+    if not (PROXY_HOST and PROXY_PORT):
+        logger.info('Прокси не настроен, используется прямое подключение')
+        return
+
+    proxy_url = f'{PROXY_TYPE}://'
+    if PROXY_USERNAME and PROXY_PASSWORD:
+        proxy_url += f'{PROXY_USERNAME}:{PROXY_PASSWORD}@'
+    proxy_url += f'{PROXY_HOST}:{PROXY_PORT}'
+
+    logger.info('Настроен прокси: %s', proxy_url)
+    apihelper.proxy = {'http': proxy_url, 'https': proxy_url}
+    logger.info('Бот использует прокси')
+
+
+def _process_homework_cycle(bot, timestamp, sent_homeworks):
+    """Обрабатывает один цикл проверки статусов домашних работ."""
+    global last_error_message
+
+    try:
+        response = get_api_answer(timestamp)
+        check_response(response)
+
+        timestamp = response.get('current_date', timestamp)
+        homeworks = response.get('homeworks', [])
+
+        if not homeworks:
+            logger.debug('Нет новых статусов домашних работ')
+            return timestamp
+
+        for homework in homeworks:
+            homework_id = homework.get('id')
+            if homework_id and homework_id not in sent_homeworks:
+                try:
+                    message = parse_status(homework)
+                    send_message(bot, message)
+                    sent_homeworks.add(homework_id)
+                except Exception as e:
+                    logger.error(
+                        'Ошибка при обработке работы ID %s: %s',
+                        homework_id,
+                        e
+                    )
+
+        last_error_message = None
+        return timestamp
+
+    except (KeyError, TypeError, ValueError) as e:
+        _send_error(bot, f'Ошибка в ответе API: {e}')
+    except Exception as e:
+        _send_error(bot, f'Сбой в работе программы: {e}')
+
+    return timestamp
+
+
+def _send_error(bot, error_message):
+    """Отправляет сообщение об ошибке, если оно новое."""
+    global last_error_message
+    if last_error_message != error_message:
+        try:
+            send_message(bot, error_message)
+            last_error_message = error_message
+        except Exception:
+            pass
+
+
 def main():
     """Основная функция бота."""
     global last_error_message
@@ -163,20 +230,9 @@ def main():
         logger.critical('Программа принудительно остановлена.')
         return
 
-    if PROXY_HOST and PROXY_PORT:
-        proxy_url = f'{PROXY_TYPE}://'
-        if PROXY_USERNAME and PROXY_PASSWORD:
-            proxy_url += f'{PROXY_USERNAME}:{PROXY_PASSWORD}@'
-        proxy_url += f'{PROXY_HOST}:{PROXY_PORT}'
+    bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-        logger.info('Настроен прокси: %s', proxy_url)
-        apihelper.proxy = {'http': proxy_url, 'https': proxy_url}
-        bot = telebot.TeleBot(TELEGRAM_TOKEN)
-        logger.info('Бот создан с использованием прокси')
-    else:
-        logger.info('Прокси не настроен, используется прямое подключение')
-        bot = telebot.TeleBot(TELEGRAM_TOKEN)
-        logger.info('Бот создан без прокси')
+    _setup_proxy()
 
     try:
         bot.get_me()
@@ -196,52 +252,7 @@ def main():
         logger.error('Не удалось отправить приветственное сообщение: %s', e)
 
     while True:
-        try:
-            response = get_api_answer(timestamp)
-            check_response(response)
-
-            timestamp = response.get('current_date', int(time.time()))
-            homeworks = response.get('homeworks', [])
-
-            if not homeworks:
-                logger.debug('Нет новых статусов домашних работ')
-            else:
-                for homework in homeworks:
-                    homework_id = homework.get('id')
-                    if homework_id and homework_id not in sent_homeworks:
-                        try:
-                            message = parse_status(homework)
-                            send_message(bot, message)
-                            sent_homeworks.add(homework_id)
-                        except Exception as e:
-                            logger.error(
-                                'Ошибка при обработке работы ID %s: %s',
-                                homework_id,
-                                e
-                            )
-
-            last_error_message = None
-
-        except (KeyError, TypeError, ValueError) as e:
-            error_message = f'Ошибка в ответе API: {e}'
-            logger.error(error_message)
-            if last_error_message != error_message:
-                try:
-                    send_message(bot, error_message)
-                    last_error_message = error_message
-                except Exception:
-                    pass
-
-        except Exception as e:
-            error_message = f'Сбой в работе программы: {e}'
-            logger.error(error_message)
-            if last_error_message != error_message:
-                try:
-                    send_message(bot, error_message)
-                    last_error_message = error_message
-                except Exception:
-                    pass
-
+        _process_homework_cycle(bot, timestamp, sent_homeworks)
         time.sleep(RETRY_PERIOD)
 
 
