@@ -1,19 +1,20 @@
 import logging
 import os
 import time
+from http import HTTPStatus
 
 import requests
 import telebot
-
 from dotenv import load_dotenv
 from telebot import apihelper
+
 from Erorrs import (
-    BotError,
-    SendMessageError,
     APIRequestError,
-    APIResponseError
+    APIResponseError,
+    BotError,
+    SendMessageError
 )
-from http import HTTPStatus
+
 
 load_dotenv('keys.env')
 
@@ -222,15 +223,24 @@ def run_bot_iteration(bot, timestamp, last_message_id, last_error_message):
         return new_timestamp, new_last_id, None
     except SendMessageError as e:
         return timestamp, last_message_id, handle_cycle_error(
-            e, bot, last_error_message, 'send'
+            e,
+            bot,
+            last_error_message,
+            'send'
         )
     except (APIRequestError, APIResponseError) as e:
         return timestamp, last_message_id, handle_cycle_error(
-            e, bot, last_error_message, 'api'
+            e,
+            bot,
+            last_error_message,
+            'api'
         )
     except Exception as e:
         return timestamp, last_message_id, handle_cycle_error(
-            e, bot, last_error_message, 'unknown'
+            e,
+            bot,
+            last_error_message,
+            'unknown'
         )
 
 
