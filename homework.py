@@ -279,12 +279,10 @@ def main():
         logger.error('Не удалось отправить приветственное сообщение: %s', e)
 
     while True:
-        try:
-            timestamp, last_message_id, last_error_message = run_bot_iteration(
-                bot, timestamp, last_message_id, last_error_message
-            )
-        finally:
-            time.sleep(RETRY_PERIOD)
+        timestamp, last_message_id, last_error_message = run_bot_iteration(
+            bot, timestamp, last_message_id, last_error_message
+        )
+        time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
