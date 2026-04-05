@@ -147,7 +147,7 @@ def parse_status(homework):
 
 
 def _setup_proxy():
-    """Настраивает прокси."""
+    """Настраивает прокси для подключения к Telegram."""
     if not (PROXY_HOST and PROXY_PORT):
         return
 
@@ -222,24 +222,15 @@ def run_bot_iteration(bot, timestamp, last_message_id, last_error_message):
         return new_timestamp, new_last_id, None
     except SendMessageError as e:
         return timestamp, last_message_id, handle_cycle_error(
-            e,
-            bot,
-            last_error_message,
-            'send'
+            e, bot, last_error_message, 'send'
         )
     except (APIRequestError, APIResponseError) as e:
         return timestamp, last_message_id, handle_cycle_error(
-            e,
-            bot,
-            last_error_message,
-            'api'
+            e, bot, last_error_message, 'api'
         )
     except Exception as e:
         return timestamp, last_message_id, handle_cycle_error(
-            e,
-            bot,
-            last_error_message,
-            'unknown'
+            e, bot, last_error_message, 'unknown'
         )
 
 
@@ -282,3 +273,7 @@ def main():
             bot, timestamp, last_message_id, last_error_message
         )
         time.sleep(RETRY_PERIOD)
+
+
+if __name__ == '__main__':
+    main()
