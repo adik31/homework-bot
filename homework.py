@@ -282,7 +282,3 @@ def main():
             bot, timestamp, last_message_id, last_error_message
         )
         time.sleep(RETRY_PERIOD)
-
-
-if __name__ == '__main__':
-    main()
