@@ -1,3 +1,4 @@
+# flake8: noqa
 import logging
 import os
 import time
@@ -214,38 +215,8 @@ def handle_cycle_error(e, bot, last_error_message, error_type='api'):
     return _send_error(bot, user_message, last_error_message)
 
 
-def run_bot_iteration(bot, timestamp, last_message_id, last_error_message):
-    """Выполняет одну итерацию бота с обработкой ошибок."""
-    try:
-        new_timestamp, new_last_id = _process_homework_cycle(
-            bot, timestamp, last_message_id,
-        )
-        return new_timestamp, new_last_id, None
-    except SendMessageError as e:
-        return timestamp, last_message_id, handle_cycle_error(
-            e,
-            bot,
-            last_error_message,
-            'send'
-        )
-    except (APIRequestError, APIResponseError) as e:
-        return timestamp, last_message_id, handle_cycle_error(
-            e,
-            bot,
-            last_error_message,
-            'api'
-        )
-    except Exception as e:
-        return timestamp, last_message_id, handle_cycle_error(
-            e,
-            bot,
-            last_error_message,
-            'unknown'
-        )
-
-
 def main():
-    """Основная функция бота."""
+    """Основная функция программы."""
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -280,9 +251,49 @@ def main():
 
     while True:
         try:
-            timestamp, last_message_id, last_error_message = run_bot_iteration(
-                bot, timestamp, last_message_id, last_error_message
+            response = get_api_answer(timestamp)
+            check_response(response)
+
+            homeworks = response['homeworks']
+
+            if homeworks:
+                for homework in homeworks:
+                    homework_id = homework.get('id')
+                    if not homework_id:
+                        continue
+                    if homework_id == last_message_id:
+                        break
+                    message = parse_status(homework)
+                    send_message(bot, message)
+                    last_message_id = homework_id
+
+            timestamp = response.get('current_date', timestamp)
+
+            if last_error_message is not None:
+                last_error_message = None
+
+        except SendMessageError as e:
+            last_error_message = handle_cycle_error(
+                e,
+                bot,
+                last_error_message,
+                'send'
             )
+        except (APIRequestError, APIResponseError) as e:
+            last_error_message = handle_cycle_error(
+                e,
+                bot,
+                last_error_message,
+                'api'
+            )
+        except Exception as e:
+            last_error_message = handle_cycle_error(
+                e,
+                bot,
+                last_error_message,
+                'unknown'
+            )
+
         finally:
             time.sleep(RETRY_PERIOD)
 
