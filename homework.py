@@ -214,14 +214,6 @@ def main():
         logger.error('Ошибка при создании/настройке бота: %s', e)
         return
 
-    try:
-        send_message(
-            bot,
-            'Бот запущен и начал отслеживание статусов домашних работ'
-        )
-    except SendMessageError as e:
-        logger.error('Не удалось отправить приветственное сообщение: %s', e)
-
     while True:
         try:
             response = get_api_answer(timestamp)
@@ -230,12 +222,10 @@ def main():
             homeworks = response['homeworks']
 
             if homeworks:
-                for homework in homeworks:
-                    homework_id = homework.get('id')
-                    if not homework_id:
-                        continue
-                    if homework_id == last_message_id:
-                        break
+                homework = homeworks[0]
+                homework_id = homework.get('id')
+
+                if homework_id and homework_id != last_message_id:
                     message = parse_status(homework)
                     send_message(bot, message)
                     last_message_id = homework_id
