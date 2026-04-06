@@ -216,7 +216,7 @@ def handle_cycle_error(e, bot, last_error_message, error_type='api'):
 
 
 def main():
-    """Основная функция программы."""
+    """основная функция бота."""
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -225,7 +225,6 @@ def main():
 
     timestamp = int(time.time())
     last_message_id = None
-    last_error_message = None
 
     try:
         check_tokens()
@@ -250,39 +249,29 @@ def main():
         logger.error('Не удалось отправить приветственное сообщение: %s', e)
 
     while True:
-        time.sleep(RETRY_PERIOD)
-
         try:
-            new_timestamp, new_last_id = _process_homework_cycle(
-                bot, timestamp, last_message_id
-            )
-            timestamp = new_timestamp
-            last_message_id = new_last_id
+            response = get_api_answer(timestamp)
+            check_response(response)
 
-            if last_error_message is not None:
-                last_error_message = None
+            homeworks = response['homeworks']
 
-        except SendMessageError as e:
-            last_error_message = handle_cycle_error(
-                e,
-                bot,
-                last_error_message,
-                'send'
-            )
-        except (APIRequestError, APIResponseError) as e:
-            last_error_message = handle_cycle_error(
-                e,
-                bot,
-                last_error_message,
-                'api'
-            )
+            if homeworks:
+                for homework in homeworks:
+                    homework_id = homework.get('id')
+                    if not homework_id:
+                        continue
+                    if homework_id == last_message_id:
+                        break
+                    message = parse_status(homework)
+                    send_message(bot, message)
+                    last_message_id = homework_id
+
+            timestamp = response.get('current_date', timestamp)
+
         except Exception as e:
-            last_error_message = handle_cycle_error(
-                e,
-                bot,
-                last_error_message,
-                'unknown'
-            )
+            logger.error('Ошибка: %s', e)
+
+        time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
