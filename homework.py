@@ -244,13 +244,13 @@ def main():
             if last_error_message is not None:
                 last_error_message = None
 
-        except SendMessageError as e:
-            last_error_message = handle_cycle_error(
-                e,
-                bot,
-                last_error_message,
-                'send'
-            )
+        # except SendMessageError as e:
+        #     last_error_message = handle_cycle_error(
+        #         e,
+        #         bot,
+        #         last_error_message,
+        #         'send'
+        #     )
         # except (APIRequestError, APIResponseError) as e:
         #     last_error_message = handle_cycle_error(
         #         e,
@@ -258,13 +258,13 @@ def main():
         #         last_error_message,
         #         'api'
         #     )
-        except Exception as e:
-            last_error_message = handle_cycle_error(
-                e,
-                bot,
-                last_error_message,
-                'unknown'
-            )
+        # except Exception as e:
+        #     last_error_message = handle_cycle_error(
+        #         e,
+        #         bot,
+        #         last_error_message,
+        #         'unknown'
+        #    )
         finally:
             time.sleep(RETRY_PERIOD)
 
