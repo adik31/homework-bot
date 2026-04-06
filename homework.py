@@ -267,7 +267,7 @@ def main():
                 'unknown'
             )
         finally:
-            time.sleep(RETRY_PERIOD)
+            time.sleep(RETRY_PERIOD) # попытки фикса тестов
 
 
 if __name__ == '__main__':
