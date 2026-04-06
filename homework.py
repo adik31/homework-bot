@@ -1,3 +1,4 @@
+# flake8: noqa
 import logging
 import os
 import time
@@ -188,6 +189,15 @@ def main():
         return
 
     bot = telebot.TeleBot(TELEGRAM_TOKEN)
+    _setup_proxy()
+
+    try:
+        send_message(
+            bot,
+            'Бот запущен и начал отслеживание статусов домашних работ'
+        )
+    except SendMessageError as e:
+        logger.error('Не удалось отправить приветственное сообщение: %s', e)
 
     while True:
         try:
