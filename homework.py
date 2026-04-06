@@ -163,29 +163,10 @@ def _setup_proxy():
 def _send_error(bot, error_message, last_error_message):
     """Отправляет сообщение об ошибке, если оно новое."""
     if last_error_message != error_message:
-        # try:
         logger.error(error_message)
         send_message(bot, error_message)
         return error_message
-        # except SendMessageError:
-        # return last_error_message
     return last_error_message
-
-
-# def handle_cycle_error(error, bot, last_error_message, error_type='api'):
-#     """Обрабатывает ошибки в цикле бота."""
-#     if error_type == 'send':
-#         logger.error('Ошибка при отправке сообщения: %s', error)
-#         return last_error_message
-
-#     if error_type == 'api':
-#         logger.error('Ошибка при работе с API: %s', error)
-#         user_message = f'Ошибка при проверке статуса: {error}'
-#     else:
-#         logger.exception('Непредвиденная ошибка: %s', error)
-#         user_message = 'Ошибка в работе бота.'
-
-#     return _send_error(bot, user_message, last_error_message)
 
 
 def main():
@@ -206,21 +187,7 @@ def main():
         logger.critical('Ошибка инициализации: %s', e)
         return
 
-    # try:
     bot = telebot.TeleBot(TELEGRAM_TOKEN)
-    #     _setup_proxy()
-    #     bot.get_me()
-    # except Exception as e:
-    #     logger.error('Ошибка при создании/настройке бота: %s', e)
-    #     return
-
-    # try:
-    #     send_message(
-    #         bot,
-    #         'Бот запущен и начал отслеживание статусов домашних работ'
-    #     )
-    # except SendMessageError as e:
-    #     logger.error('Не удалось отправить приветственное сообщение: %s', e)
 
     while True:
         try:
@@ -245,20 +212,7 @@ def main():
                 last_error_message = None
 
         except SendMessageError as e:
-            # last_error_message = handle_cycle_error(
-            #     e,
-            #     bot,
-            #     last_error_message,
-            #     'api'
-            # )
             logger.error('Ошибка при отправке сообщения: %s', e)
-        # except (APIRequestError, APIResponseError) as e:
-        #     last_error_message = handle_cycle_error(
-        #         e,
-        #         bot,
-        #         last_error_message,
-        #         'api'
-        #     )
         except Exception as e:
             last_error_message = _send_error(bot, e, last_error_message)
         finally:
