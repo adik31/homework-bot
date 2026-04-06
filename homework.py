@@ -168,7 +168,7 @@ def _send_error(bot, error_message, last_error_message):
         send_message(bot, error_message)
         return error_message
         # except SendMessageError:
-            # return last_error_message
+        # return last_error_message
     return last_error_message
 
 
