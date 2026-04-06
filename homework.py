@@ -271,7 +271,7 @@ def main():
         except Exception as e:
             logger.error('Ошибка: %s', e)
 
-        time.sleep(RETRY_PERIOD)
+        time.sleep(600)
 
 
 if __name__ == '__main__':
