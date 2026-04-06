@@ -1,4 +1,3 @@
-# flake8: noqa
 import logging
 import os
 import time
@@ -165,11 +164,11 @@ def _send_error(bot, error_message, last_error_message):
     """Отправляет сообщение об ошибке, если оно новое."""
     if last_error_message != error_message:
         # try:
-        logger.error(error_message)
-        send_message(bot, error_message)
-        return error_message
-        #except SendMessageError:
-            #return last_error_message
+            logger.error(error_message)
+            send_message(bot, error_message)
+            return error_message
+        # except SendMessageError:
+            # return last_error_message
     return last_error_message
 
 
@@ -207,13 +206,13 @@ def main():
         logger.critical('Ошибка инициализации: %s', e)
         return
 
-    try:
-        bot = telebot.TeleBot(TELEGRAM_TOKEN)
-        _setup_proxy()
-        bot.get_me()
-    except Exception as e:
-        logger.error('Ошибка при создании/настройке бота: %s', e)
-        return
+    # try:
+    bot = telebot.TeleBot(TELEGRAM_TOKEN)
+    #     _setup_proxy()
+    #     bot.get_me()
+    # except Exception as e:
+    #     logger.error('Ошибка при создании/настройке бота: %s', e)
+    #     return
 
     # try:
     #     send_message(
@@ -238,19 +237,21 @@ def main():
                     message = parse_status(homework)
                     send_message(bot, message)
                     last_message_id = homework_id
-
+            else:
+                logger.debug('Нет работ')
             timestamp = response.get('current_date', timestamp)
 
             if last_error_message is not None:
                 last_error_message = None
 
-        # except SendMessageError as e:
-        #     last_error_message = handle_cycle_error(
-        #         e,
-        #         bot,
-        #         last_error_message,
-        #         'send'
-        #     )
+        except SendMessageError as e:
+            # last_error_message = handle_cycle_error(
+            #     e,
+            #     bot,
+            #     last_error_message,
+            #     'api'
+            # )
+            logger.error('Ошибка при отправке сообщения: %s', e)
         # except (APIRequestError, APIResponseError) as e:
         #     last_error_message = handle_cycle_error(
         #         e,
@@ -258,13 +259,8 @@ def main():
         #         last_error_message,
         #         'api'
         #     )
-        # except Exception as e:
-        #     last_error_message = handle_cycle_error(
-        #         e,
-        #         bot,
-        #         last_error_message,
-        #         'unknown'
-        #    )
+        except Exception as e:
+            last_error_message = _send_error(bot, e, last_error_message)
         finally:
             time.sleep(RETRY_PERIOD)
 
