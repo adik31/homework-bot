@@ -250,6 +250,8 @@ def main():
         logger.error('Не удалось отправить приветственное сообщение: %s', e)
 
     while True:
+        time.sleep(RETRY_PERIOD)
+
         try:
             new_timestamp, new_last_id = _process_homework_cycle(
                 bot, timestamp, last_message_id
@@ -281,8 +283,6 @@ def main():
                 last_error_message,
                 'unknown'
             )
-
-        time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
