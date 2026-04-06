@@ -9,7 +9,7 @@ import telebot
 from dotenv import load_dotenv
 from telebot import apihelper
 
-from Erorrs import (
+from errors import (
     APIRequestError,
     APIResponseError,
     BotError,
@@ -161,33 +161,6 @@ def _setup_proxy():
     apihelper.proxy = {'http': proxy_url, 'https': proxy_url}
 
 
-def _process_homework_cycle(bot, timestamp, last_message_id):
-    """Обрабатывает один цикл проверки статусов домашних работ."""
-    response = get_api_answer(timestamp)
-    check_response(response)
-
-    homeworks = response['homeworks']
-
-    if not homeworks:
-        return timestamp, last_message_id
-
-    for homework in homeworks:
-        homework_id = homework.get('id')
-        if not homework_id:
-            continue
-
-        if homework_id == last_message_id:
-            break
-
-        message = parse_status(homework)
-        send_message(bot, message)
-        last_message_id = homework_id
-
-    timestamp = response['current_date']
-
-    return timestamp, last_message_id
-
-
 def _send_error(bot, error_message, last_error_message):
     """Отправляет сообщение об ошибке, если оно новое."""
     if last_error_message != error_message:
@@ -199,24 +172,24 @@ def _send_error(bot, error_message, last_error_message):
     return last_error_message
 
 
-def handle_cycle_error(e, bot, last_error_message, error_type='api'):
+def handle_cycle_error(error, bot, last_error_message, error_type='api'):
     """Обрабатывает ошибки в цикле бота."""
     if error_type == 'send':
-        logger.error('Ошибка при отправке сообщения: %s', e)
+        logger.error('Ошибка при отправке сообщения: %s', error)
         return last_error_message
 
     if error_type == 'api':
-        logger.error('Ошибка при работе с API: %s', e)
-        user_message = f'Ошибка при проверке статуса: {e}'
+        logger.error('Ошибка при работе с API: %s', error)
+        user_message = f'Ошибка при проверке статуса: {error}'
     else:
-        logger.exception('Непредвиденная ошибка: %s', e)
+        logger.exception('Непредвиденная ошибка: %s', error)
         user_message = 'Ошибка в работе бота.'
 
     return _send_error(bot, user_message, last_error_message)
 
 
 def main():
-    """основная функция бота."""
+    """Основная функция бота."""
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -225,6 +198,7 @@ def main():
 
     timestamp = int(time.time())
     last_message_id = None
+    last_error_message = None
 
     try:
         check_tokens()
@@ -268,10 +242,32 @@ def main():
 
             timestamp = response.get('current_date', timestamp)
 
-        except Exception as e:
-            logger.error('Ошибка: %s', e)
+            if last_error_message is not None:
+                last_error_message = None
 
-        time.sleep(600)
+        except SendMessageError as e:
+            last_error_message = handle_cycle_error(
+                e,
+                bot,
+                last_error_message,
+                'send'
+            )
+        except (APIRequestError, APIResponseError) as e:
+            last_error_message = handle_cycle_error(
+                e,
+                bot,
+                last_error_message,
+                'api'
+            )
+        except Exception as e:
+            last_error_message = handle_cycle_error(
+                e,
+                bot,
+                last_error_message,
+                'unknown'
+            )
+        finally:
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
