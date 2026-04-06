@@ -164,9 +164,9 @@ def _send_error(bot, error_message, last_error_message):
     """Отправляет сообщение об ошибке, если оно новое."""
     if last_error_message != error_message:
         # try:
-            logger.error(error_message)
-            send_message(bot, error_message)
-            return error_message
+        logger.error(error_message)
+        send_message(bot, error_message)
+        return error_message
         # except SendMessageError:
             # return last_error_message
     return last_error_message
@@ -263,6 +263,7 @@ def main():
             last_error_message = _send_error(bot, e, last_error_message)
         finally:
             time.sleep(RETRY_PERIOD)
+
 
 if __name__ == '__main__':
     main()
