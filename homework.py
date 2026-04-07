@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 from telebot import apihelper
 
 from errors import (
+    BotError,
     APIRequestError,
     APIResponseError,
-    BotError,
     SendMessageError
 )
 
@@ -31,6 +31,8 @@ PROXY_PASSWORD = os.getenv('PROXY_PASSWORD')
 
 RETRY_PERIOD = 600
 RETRY_IP_PERIOD = 60
+MAX_ERROR_LEN = 50
+FIRST_HOMEWORK_INDEX = 0
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -52,6 +54,9 @@ def check_tokens():
     }
     missing = [name for name, value in tokens.items() if not value]
     if missing:
+        logger.critical(
+            f'Отсутствуют переменные окружения: {", ".join(missing)}'
+        )
         raise BotError(
             f'Отсутствуют переменные окружения: {", ".join(missing)}'
         )
@@ -68,7 +73,7 @@ def send_message(bot, message):
         logger.debug('Бот отправил сообщение')
     except Exception as e:
         raise SendMessageError(
-            f'Не удалось отправить сообщение: {message[:50]}...'
+            f'Не удалось отправить сообщение: {message[:MAX_ERROR_LEN]}...'
         ) from e
 
 
@@ -84,7 +89,12 @@ def get_api_answer(timestamp):
     try:
         response = requests.get(**request_kwargs)
     except requests.exceptions.RequestException as e:
-        raise APIRequestError(f'Ошибка при запросе к API: {e}') from e
+        raise APIRequestError(
+            f'Ошибка при запросе к API: {e}\n'
+            f'URL: {ENDPOINT}\n'
+            f'Параметры: {{"from_date": {timestamp}}}\n'
+            f'Timeout: {RETRY_IP_PERIOD} сек.'
+        ) from e
 
     if response.status_code != HTTPStatus.OK:
         raise APIResponseError(
@@ -120,7 +130,6 @@ def check_response(response):
     if not isinstance(response.get('current_date'), (int, float)):
         raise TypeError('Значение "current_date" должно быть числом')
 
-    return True
 
 
 def parse_status(homework):
@@ -165,21 +174,19 @@ def _send_error(bot, error_message, last_error_message):
     """Отправляет сообщение об ошибке, если оно новое."""
     if last_error_message != error_message:
         logger.error(error_message)
-        send_message(bot, error_message)
+        try:
+            send_message(bot, error_message)
+        except SendMessageError:
+            pass
         return error_message
     return last_error_message
 
 
 def main():
     """Основная функция бота."""
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[logging.FileHandler('bot.log', encoding='utf-8')]
-    )
 
     timestamp = int(time.time())
-    last_message_id = None
+    last_message = None
     last_error_message = None
 
     try:
@@ -207,13 +214,11 @@ def main():
             homeworks = response['homeworks']
 
             if homeworks:
-                homework = homeworks[0]
-                homework_id = homework.get('id')
-
-                if homework_id and homework_id != last_message_id:
-                    message = parse_status(homework)
+                homework = homeworks[FIRST_HOMEWORK_INDEX]
+                message = parse_status(homework)
+                if message != last_message:
                     send_message(bot, message)
-                    last_message_id = homework_id
+                    last_message = message
             else:
                 logger.debug('Нет работ')
             timestamp = response.get('current_date', timestamp)
@@ -224,10 +229,15 @@ def main():
         except SendMessageError as e:
             logger.error('Ошибка при отправке сообщения: %s', e)
         except Exception as e:
-            last_error_message = _send_error(bot, e, last_error_message)
+            last_error_message = _send_error(bot, str(e)    , last_error_message)
         finally:
             time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.FileHandler('bot.log', encoding='utf-8')]
+    )
     main()
