@@ -32,7 +32,7 @@ PROXY_PASSWORD = os.getenv('PROXY_PASSWORD')
 RETRY_PERIOD = 600
 RETRY_IP_PERIOD = 60
 MAX_ERROR_LEN = 50
-FIRST_HOMEWORK_INDEX = 0
+ACTUAL_HOMEWORK_INDEX = 0
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -60,6 +60,7 @@ def check_tokens():
         raise BotError(
             f'Отсутствуют переменные окружения: {", ".join(missing)}'
         )
+        # return False (не проходит тесты)
     logger.info('Все переменные окружения доступны')
     return True
 
@@ -90,10 +91,8 @@ def get_api_answer(timestamp):
         response = requests.get(**request_kwargs)
     except requests.exceptions.RequestException as e:
         raise APIRequestError(
-            f'Ошибка при запросе к API: {e}\n'
-            f'URL: {ENDPOINT}\n'
-            f'Параметры: {{"from_date": {timestamp}}}\n'
-            f'Timeout: {RETRY_IP_PERIOD} сек.'
+            f'{ENDPOINT} недоступен. Код ответа: {response.status_code}\n'
+            f'Параметры запроса: {request_kwargs}'
         ) from e
 
     if response.status_code != HTTPStatus.OK:
@@ -185,15 +184,14 @@ def _send_error(bot, error_message, last_error_message):
 def main():
     """Основная функция бота."""
 
-    timestamp = int(time.time())
     last_message = None
     last_error_message = None
 
-    try:
-        check_tokens()
-    except BotError as e:
-        logger.critical('Ошибка инициализации: %s', e)
-        return
+    if not check_tokens():
+            logger.critical('Ошибка инициализации: %s', e)
+            return
+    
+    timestamp = int(time.time())
 
     bot = telebot.TeleBot(TELEGRAM_TOKEN)
     _setup_proxy()
@@ -214,7 +212,7 @@ def main():
             homeworks = response['homeworks']
 
             if homeworks:
-                homework = homeworks[FIRST_HOMEWORK_INDEX]
+                homework = homeworks[ACTUAL_HOMEWORK_INDEX]
                 message = parse_status(homework)
                 if message != last_message:
                     send_message(bot, message)
