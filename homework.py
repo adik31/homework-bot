@@ -57,10 +57,7 @@ def check_tokens():
         logger.critical(
             f'Отсутствуют переменные окружения: {", ".join(missing)}'
         )
-        raise BotError(
-            f'Отсутствуют переменные окружения: {", ".join(missing)}'
-        )
-        # return False (не проходит тесты)
+        return False
     logger.info('Все переменные окружения доступны')
     return True
 
@@ -188,8 +185,11 @@ def main():
     last_error_message = None
 
     if not check_tokens():
+
             logger.critical('Ошибка инициализации: %s', e)
-            return
+            raise BotError(
+            f'Отсутствуют переменные окружения: {", ".join(missing)}'
+        )
     
     timestamp = int(time.time())
 
